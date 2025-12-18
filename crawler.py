@@ -12,17 +12,28 @@ BASE_URL = "https://jdih.kemendag.go.id"
 TARGET_URL_TEMPLATE = "https://jdih.kemendag.go.id/peraturan?page={}" 
 
 def parse_indonesian_date(text):
-    """Extracts date like '20 Januari 2024' -> '2024-01-20'"""
+    """
+    Strictly extracts date like '20 Januari 2024'.
+    Ignores false positives like '99 Tahun 2025'.
+    """
     month_map = {
         "Januari": "01", "Februari": "02", "Maret": "03", "April": "04",
         "Mei": "05", "Juni": "06", "Juli": "07", "Agustus": "08",
         "September": "09", "Oktober": "10", "November": "11", "Desember": "12"
     }
-    match = re.search(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})", text)
-    if match:
+    
+    # Iterate through ALL patterns that look like dates
+    matches = re.finditer(r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})", text)
+    
+    for match in matches:
         day, month_name, year = match.groups()
-        month = month_map.get(month_name, "01")
-        return f"{year}-{month}-{day.zfill(2)}"
+        
+        # CRITICAL CHECK: Is the word actually a month?
+        if month_name in month_map:
+            month = month_map[month_name]
+            return f"{year}-{month}-{day.zfill(2)}"
+            
+    # If no valid month is found, fallback to today
     return datetime.datetime.now().strftime("%Y-%m-%d")
 
 def fetch_links_from_page(page_number):
